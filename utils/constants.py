@@ -36,9 +36,33 @@ UP_BLOCKS = [b for b in BLOCKS if b.endswith("_up")]
 DOWN_BLOCKS = [b for b in BLOCKS if b.endswith("_down")]
 
 # J1 traffic light / rail signal
-J1_TLS_ID = "TLS3"
+J1_TLS_ID = "J1"
 
-B5_TLS_ID = "TLS6"
+# Block signal IDs
+BLOCK_TLS = {
+    "B1": "TLS1",
+    "B2": "TLS2",
+    "B3": "TLS3",
+    "B4": "TLS4",
+    "B5": "TLS5",
+    "B6": "TLS6",
+}
+
+# For all these 2-link block signals, use:
+# link 0 = down direction
+# link 1 = up direction
+BLOCK_SIGNAL_STATES = {
+    "ALL_RED": "rr",
+    "UP_GREEN": "rG",
+    "DOWN_GREEN": "Gr",
+    "BOTH_GREEN": "GG",
+    "UP_YELLOW": "ry",
+    "DOWN_YELLOW": "yr",
+}
+
+
+
+B5_TLS_ID = "TLS5"
 
 # J10 link order:
 # 0 = -E8 -> -E7   (C -> J1 direction)

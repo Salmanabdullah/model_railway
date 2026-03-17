@@ -10,8 +10,8 @@
     <route id="routeAC" edges="E1 E2 E3 E7 E8 E9"/>
 
     <vehicle id="train1" type="train" route="routeAB" depart="0"/>
-    <vehicle id="train2" type="train" route="routeBA" depart="10"/>
     <vehicle id="train3" type="train" route="routeCA" depart="10"/>
-    <vehicle id="train4" type="train" route="routeAC" depart="40"/>
+    <!-- <vehicle id="train2" type="train" route="routeBA" depart="10"/> -->
+    <!-- <vehicle id="train4" type="train" route="routeAC" depart="40"/> -->
 
 </routes>
