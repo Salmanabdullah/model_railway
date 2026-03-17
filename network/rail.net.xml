@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2026-03-17T13:44:52.370009+01:00 by Eclipse SUMO netedit 1.25.0
+<!-- generated on 2026-03-17T22:23:32.267279+01:00 by Eclipse SUMO netedit 1.25.0
 <neteditConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/neteditConfiguration.xsd">
 
     <input>
@@ -143,7 +143,17 @@
         <lane id="E9_0" index="0" allow="rail" speed="13.89" length="62.16" shape="-1401.72,2022.28 -1345.28,1996.23"/>
     </edge>
 
-    <tlLogic id="J1" type="static" programID="0" offset="0">
+    <tlLogic id="TLS1" type="static" programID="0" offset="0">
+        <phase duration="82" state="GG"/>
+        <phase duration="3"  state="yy"/>
+        <phase duration="5"  state="rr"/>
+    </tlLogic>
+    <tlLogic id="TLS2" type="static" programID="0" offset="0">
+        <phase duration="82" state="GG"/>
+        <phase duration="3"  state="yy"/>
+        <phase duration="5"  state="rr"/>
+    </tlLogic>
+    <tlLogic id="TLS3" type="static" programID="0" offset="0">
         <phase duration="27" state="rrrr"/>
         <phase duration="3"  state="yrrr"/>
         <phase duration="27" state="rGrr"/>
@@ -151,32 +161,22 @@
         <phase duration="27" state="rrGG"/>
         <phase duration="3"  state="rryy"/>
     </tlLogic>
-    <tlLogic id="J10" type="static" programID="0" offset="0">
+    <tlLogic id="TLS4" type="static" programID="0" offset="0">
         <phase duration="82" state="GG"/>
         <phase duration="3"  state="yy"/>
         <phase duration="5"  state="rr"/>
     </tlLogic>
-    <tlLogic id="J11" type="static" programID="0" offset="0">
+    <tlLogic id="TLS5" type="static" programID="0" offset="0">
         <phase duration="82" state="GG"/>
         <phase duration="3"  state="yy"/>
         <phase duration="5"  state="rr"/>
     </tlLogic>
-    <tlLogic id="J6" type="static" programID="0" offset="0">
+    <tlLogic id="TLS6" type="static" programID="0" offset="0">
         <phase duration="82" state="GG"/>
         <phase duration="3"  state="yy"/>
         <phase duration="5"  state="rr"/>
     </tlLogic>
-    <tlLogic id="J7" type="static" programID="0" offset="0">
-        <phase duration="82" state="GG"/>
-        <phase duration="3"  state="yy"/>
-        <phase duration="5"  state="rr"/>
-    </tlLogic>
-    <tlLogic id="J8" type="static" programID="0" offset="0">
-        <phase duration="82" state="GG"/>
-        <phase duration="3"  state="yy"/>
-        <phase duration="5"  state="rr"/>
-    </tlLogic>
-    <tlLogic id="J9" type="static" programID="0" offset="0">
+    <tlLogic id="TLS7" type="static" programID="0" offset="0">
         <phase duration="82" state="GG"/>
         <phase duration="3"  state="yy"/>
         <phase duration="5"  state="rr"/>
@@ -216,22 +216,22 @@
         <request index="3" response="0000" foes="0010" cont="0"/>
     </junction>
 
-    <connection from="-E2" to="-E1" fromLane="0" toLane="0" via=":B1_0_0" tl="J7" linkIndex="0" dir="s" state="O"/>
-    <connection from="-E3" to="-E2" fromLane="0" toLane="0" via=":B2_0_0" tl="J6" linkIndex="0" dir="s" state="O"/>
-    <connection from="-E4" to="-E3" fromLane="0" toLane="0" via=":J1_0_0" tl="J1" linkIndex="0" dir="s" state="O"/>
-    <connection from="-E5" to="-E4" fromLane="0" toLane="0" via=":B3_0_0" tl="J8" linkIndex="0" dir="s" state="O"/>
-    <connection from="-E6" to="-E5" fromLane="0" toLane="0" via=":B4_0_0" tl="J9" linkIndex="0" dir="s" state="O"/>
-    <connection from="-E7" to="-E3" fromLane="0" toLane="0" via=":J1_1_0" tl="J1" linkIndex="1" dir="s" state="o"/>
-    <connection from="-E8" to="-E7" fromLane="0" toLane="0" via=":B5_0_0" tl="J10" linkIndex="0" dir="s" state="O"/>
-    <connection from="-E9" to="-E8" fromLane="0" toLane="0" via=":B6_0_0" tl="J11" linkIndex="0" dir="s" state="O"/>
-    <connection from="E1" to="E2" fromLane="0" toLane="0" via=":B1_1_0" tl="J7" linkIndex="1" dir="s" state="O"/>
-    <connection from="E2" to="E3" fromLane="0" toLane="0" via=":B2_1_0" tl="J6" linkIndex="1" dir="s" state="O"/>
-    <connection from="E3" to="E7" fromLane="0" toLane="0" via=":J1_2_0" tl="J1" linkIndex="2" dir="R" state="O"/>
-    <connection from="E3" to="E4" fromLane="0" toLane="0" via=":J1_3_0" tl="J1" linkIndex="3" dir="s" state="O"/>
-    <connection from="E4" to="E5" fromLane="0" toLane="0" via=":B3_1_0" tl="J8" linkIndex="1" dir="s" state="O"/>
-    <connection from="E5" to="E6" fromLane="0" toLane="0" via=":B4_1_0" tl="J9" linkIndex="1" dir="s" state="O"/>
-    <connection from="E7" to="E8" fromLane="0" toLane="0" via=":B5_1_0" tl="J10" linkIndex="1" dir="s" state="O"/>
-    <connection from="E8" to="E9" fromLane="0" toLane="0" via=":B6_1_0" tl="J11" linkIndex="1" dir="s" state="O"/>
+    <connection from="-E2" to="-E1" fromLane="0" toLane="0" via=":B1_0_0" tl="TLS1" linkIndex="0" dir="s" state="O"/>
+    <connection from="-E3" to="-E2" fromLane="0" toLane="0" via=":B2_0_0" tl="TLS2" linkIndex="0" dir="s" state="O"/>
+    <connection from="-E4" to="-E3" fromLane="0" toLane="0" via=":J1_0_0" tl="TLS3" linkIndex="0" dir="s" state="O"/>
+    <connection from="-E5" to="-E4" fromLane="0" toLane="0" via=":B3_0_0" tl="TLS4" linkIndex="0" dir="s" state="O"/>
+    <connection from="-E6" to="-E5" fromLane="0" toLane="0" via=":B4_0_0" tl="TLS5" linkIndex="0" dir="s" state="O"/>
+    <connection from="-E7" to="-E3" fromLane="0" toLane="0" via=":J1_1_0" tl="TLS3" linkIndex="1" dir="s" state="o"/>
+    <connection from="-E8" to="-E7" fromLane="0" toLane="0" via=":B5_0_0" tl="TLS6" linkIndex="0" dir="s" state="O"/>
+    <connection from="-E9" to="-E8" fromLane="0" toLane="0" via=":B6_0_0" tl="TLS7" linkIndex="0" dir="s" state="O"/>
+    <connection from="E1" to="E2" fromLane="0" toLane="0" via=":B1_1_0" tl="TLS1" linkIndex="1" dir="s" state="O"/>
+    <connection from="E2" to="E3" fromLane="0" toLane="0" via=":B2_1_0" tl="TLS2" linkIndex="1" dir="s" state="O"/>
+    <connection from="E3" to="E7" fromLane="0" toLane="0" via=":J1_2_0" tl="TLS3" linkIndex="2" dir="R" state="O"/>
+    <connection from="E3" to="E4" fromLane="0" toLane="0" via=":J1_3_0" tl="TLS3" linkIndex="3" dir="s" state="O"/>
+    <connection from="E4" to="E5" fromLane="0" toLane="0" via=":B3_1_0" tl="TLS4" linkIndex="1" dir="s" state="O"/>
+    <connection from="E5" to="E6" fromLane="0" toLane="0" via=":B4_1_0" tl="TLS5" linkIndex="1" dir="s" state="O"/>
+    <connection from="E7" to="E8" fromLane="0" toLane="0" via=":B5_1_0" tl="TLS6" linkIndex="1" dir="s" state="O"/>
+    <connection from="E8" to="E9" fromLane="0" toLane="0" via=":B6_1_0" tl="TLS7" linkIndex="1" dir="s" state="O"/>
 
     <connection from=":B1_0" to="-E1" fromLane="0" toLane="0" dir="s" state="M"/>
     <connection from=":B1_1" to="E2" fromLane="0" toLane="0" dir="s" state="M"/>
