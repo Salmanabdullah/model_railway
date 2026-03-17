@@ -14,15 +14,12 @@ BLOCKS = {
     "B6_down": ["-E1"],
 }
 
-LOGICAL_BLOCKS = {
-    "B1": ["B1_up", "B1_down"],
-    "B2": ["B2_up", "B2_down"],
-    "B3": ["B3_up", "B3_down"],
-    "B4": ["B4_up", "B4_down"],
-    "B5": ["B5_up", "B5_down"],
-    "B6": ["B6_up", "B6_down"],
-}
+# Map edges → blocks (VERY IMPORTANT for fast lookup)
+EDGE_TO_BLOCK = {}
+for block, edges in BLOCKS.items():
+    for e in edges:
+        EDGE_TO_BLOCK[e] = block
 
-JUNCTION = "J1"
-
-TRAINS = ["train_1", "train_2"]
+# Direction detection
+UP_BLOCKS = [b for b in BLOCKS if "_up" in b]
+DOWN_BLOCKS = [b for b in BLOCKS if "_down" in b]
