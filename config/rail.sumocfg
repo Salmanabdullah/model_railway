@@ -1,0 +1,13 @@
+<configuration>
+
+<input>
+    <net-file value="../network/rail.net.xml"/>
+    <route-files value="../routes/rail.rou.xml"/>
+</input>
+
+<time>
+    <begin value="0"/>
+    <end value="200"/>
+</time>
+
+</configuration>
