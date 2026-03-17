@@ -2,6 +2,7 @@
 from controller.block_controller import BlockController
 from controller.junction_controller import JunctionController
 from controller.train_controller import TrainController
+from controller.block_signal_controller import BlockSignalController
 
 CONFIG = "config/rail.sumocfg"
 
@@ -10,6 +11,7 @@ def run():
 
     block_controller = BlockController()
     junction_controller = JunctionController(block_controller)
+    block_signal_controller = BlockSignalController(block_controller, junction_controller)
     train_controller = TrainController(block_controller, junction_controller)
 
     step = 0
@@ -17,6 +19,7 @@ def run():
         simulation_step()
 
         block_controller.update_occupancy()
+        block_signal_controller.update()
         train_controller.update_trains()
 
         block_controller.print_status()
