@@ -80,6 +80,7 @@ APPROACH_SPEED = 0.5
 # 3 =  E3 -> E4    (A -> B)
 J1_STATES = {
     "ALL_RED": "rrrr",
+    "ALL_GREEN": "GGGG",
     "B_to_A":  "Grrr",
     "C_to_A":  "rGrr",
     "A_to_C":  "rrGr",
@@ -88,10 +89,10 @@ J1_STATES = {
 
 # Which blocks must be free before a route can be granted
 ROUTE_REQUIREMENTS = {
-    "A_to_B": ["B3_up", "B4_up"],
-    "A_to_C": ["B5_up", "B6_up"],
-    "B_to_A": ["B2_down", "B1_down"],
-    "C_to_A": ["B2_down", "B1_down"],
+    "A_to_B": ["B3_up"],
+    "A_to_C": ["B5_up"],
+    "B_to_A": ["B2_down"],
+    "C_to_A": ["B2_down"],
 }
 
 # Route from CURRENT edge onward

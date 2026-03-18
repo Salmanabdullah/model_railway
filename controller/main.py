@@ -15,12 +15,12 @@ def run():
     train_controller = TrainController(block_controller, junction_controller)
 
     step = 0
-    while step < 200:
+    while step < 350:
         simulation_step()
 
         block_controller.update_occupancy()
-        block_signal_controller.update()
         train_controller.update_trains()
+        block_signal_controller.update()
 
         block_controller.print_status()
 

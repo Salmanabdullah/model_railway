@@ -1,10 +1,12 @@
 import traci
+from collections import deque
 
 from utils.constants import (
     J1_TLS_ID,
     J1_STATES,
     ROUTE_REQUIREMENTS,
     TRAIN_ROUTE_EDGES,
+    J1_RELEASE_ZONES,
 )
 
 
@@ -17,7 +19,10 @@ class JunctionController:
         self.active_train = None
         self.active_route = None
 
-        self._set_j1("ALL_RED")
+        # FIFO queue for trains waiting for J1
+        self.wait_queue = deque()
+
+        self._set_j1("ALL_GREEN")
 
     def _set_j1(self, route_name):
         traci.trafficlight.setRedYellowGreenState(J1_TLS_ID, J1_STATES[route_name])
@@ -37,6 +42,9 @@ class JunctionController:
         self.active_train = train_id
         self.active_route = route_name
 
+        # remove from queue if it is there
+        self._remove_from_queue(train_id)
+
         self._set_j1(route_name)
         traci.vehicle.setRoute(train_id, TRAIN_ROUTE_EDGES[route_name])
         traci.vehicle.setSpeed(train_id, -1)
@@ -49,26 +57,75 @@ class JunctionController:
             self._set_j1("ALL_RED")
         print(f"{train_id}: waiting ({reason})")
 
-    def _release_if_cleared(self, train_id, current_block):
-        if self.active_train != train_id:
+    def _remove_from_queue(self, train_id):
+        self.wait_queue = deque(t for t in self.wait_queue if t != train_id)
+
+    def _is_j1_approach_block(self, current_block):
+        return current_block in {"B2_up", "B3_down", "B5_down"}
+
+    def _enqueue_if_needed(self, train_id, current_block):
+        if not self._is_j1_approach_block(current_block):
             return
 
-        if self.active_route == "A_to_B" and current_block not in {"B2_up", "B3_up"}:
-            self.active_train = None
-            self.active_route = None
-            self._set_j1("ALL_RED")
+        if train_id == self.active_train:
+            return
 
-        elif self.active_route == "A_to_C" and current_block not in {"B2_up", "B5_up"}:
-            self.active_train = None
-            self.active_route = None
-            self._set_j1("ALL_RED")
+        if train_id not in self.wait_queue:
+            self.wait_queue.append(train_id)
+            print(f"{train_id}: added to J1 FIFO queue -> {list(self.wait_queue)}")
 
-        elif self.active_route == "B_to_A" and current_block not in {"B3_down", "B2_down"}:
-            self.active_train = None
-            self.active_route = None
-            self._set_j1("ALL_RED")
+    def _cleanup_queue(self):
+        """
+        Remove trains that:
+        - no longer exist in the simulation
+        - are no longer waiting on a J1 approach block
+        - are already the active train
+        """
+        existing = set(traci.vehicle.getIDList())
+        cleaned = deque()
 
-        elif self.active_route == "C_to_A" and current_block not in {"B5_down", "B2_down"}:
+        for train_id in self.wait_queue:
+            if train_id not in existing:
+                continue
+
+            if train_id == self.active_train:
+                continue
+
+            current_block = self.block_controller.get_train_block(train_id)
+            if not self._is_j1_approach_block(current_block):
+                continue
+
+            if train_id not in cleaned:
+                cleaned.append(train_id)
+
+        self.wait_queue = cleaned
+
+    def _is_queue_head(self, train_id):
+        return len(self.wait_queue) > 0 and self.wait_queue[0] == train_id
+
+    def _route_for_train(self, train_id, current_block):
+        requested_route = self._get_requested_route(train_id)
+
+        if current_block == "B2_up":
+            if requested_route == "routeAB":
+                return "A_to_B"
+            elif requested_route == "routeAC":
+                return "A_to_C"
+
+        elif current_block == "B3_down":
+            return "B_to_A"
+
+        elif current_block == "B5_down":
+            return "C_to_A"
+
+        return None
+
+    def _release_if_cleared(self, train_id, current_block):
+        if self.active_train != train_id or self.active_route is None:
+            return
+
+        if current_block not in J1_RELEASE_ZONES[self.active_route]:
+            print(f"{train_id}: released J1 route {self.active_route}")
             self.active_train = None
             self.active_route = None
             self._set_j1("ALL_RED")
@@ -78,39 +135,41 @@ class JunctionController:
         if current_block is None:
             return
 
+        # first, release J1 if the owning train has cleared it
         self._release_if_cleared(train_id, current_block)
 
-        if self.active_train not in (None, train_id):
-            if current_block in {"B2_up", "B3_down", "B5_down"}:
-                self._hold(train_id, "J1 reserved")
+        # keep active train moving
+        if self.active_train == train_id and self.active_route is not None:
+            self._set_j1(self.active_route)
+            traci.vehicle.setSpeed(train_id, -1)
             return
 
-        requested_route = self._get_requested_route(train_id)
+        # add approaching trains to FIFO queue
+        self._enqueue_if_needed(train_id, current_block)
 
-        if current_block == "B2_up":
-            if requested_route == "routeAB":
-                if self._route_free("A_to_B"):
-                    self._grant(train_id, "A_to_B")
-                else:
-                    self._hold(train_id, "A_to_B blocks occupied")
+        # clean stale entries
+        self._cleanup_queue()
 
-            elif requested_route == "routeAC":
-                if self._route_free("A_to_C"):
-                    self._grant(train_id, "A_to_C")
-                else:
-                    self._hold(train_id, "A_to_C blocks occupied")
+        # if this train is not actually waiting for J1, nothing to do
+        if not self._is_j1_approach_block(current_block):
+            return
 
-            else:
-                self._hold(train_id, f"unknown requested route {requested_route}")
+        # if another train owns J1, everybody else waits
+        if self.active_train not in (None, train_id):
+            self._hold(train_id, "J1 reserved")
+            return
 
-        elif current_block == "B3_down":
-            if self._route_free("B_to_A"):
-                self._grant(train_id, "B_to_A")
-            else:
-                self._hold(train_id, "B_to_A blocks occupied")
+        # J1 is free now, but only the FIFO head may be granted
+        if not self._is_queue_head(train_id):
+            self._hold(train_id, f"FIFO waiting, head={self.wait_queue[0] if self.wait_queue else None}")
+            return
 
-        elif current_block == "B5_down":
-            if self._route_free("C_to_A"):
-                self._grant(train_id, "C_to_A")
-            else:
-                self._hold(train_id, "C_to_A blocks occupied")
+        route_name = self._route_for_train(train_id, current_block)
+        if route_name is None:
+            self._hold(train_id, "unknown route")
+            return
+
+        if self._route_free(route_name):
+            self._grant(train_id, route_name)
+        else:
+            self._hold(train_id, f"{route_name} blocks occupied")

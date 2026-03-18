@@ -1,5 +1,4 @@
 import traci
-import sumolib
 
 SUMO_CMD = "sumo-gui"
 

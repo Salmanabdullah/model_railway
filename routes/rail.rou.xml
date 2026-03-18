@@ -1,6 +1,7 @@
 <routes>
 
-    <vType id="train" accel="0.5" decel="1.0" length="15" maxSpeed="2" vClass="rail" guiShape="rail" width="4" color="1,0,0"/>
+    <vType id="train" accel="0.5" decel="1.0" length="15" maxSpeed="2" vClass="rail" guiShape="rail" width="4" color="1,0,0" jmDriveAfterRedTime="0"/>
+    <!-- jmDriveAfterRedTime="0" means that the train will start moving immediately after the signal turns green, without any delay. -->
     
     <!-- edge means starting and ending of a train -->
     
@@ -10,8 +11,8 @@
     <route id="routeAC" edges="E1 E2 E3 E7 E8 E9"/>
 
     <vehicle id="train1" type="train" route="routeAB" depart="0"/>
-    <vehicle id="train3" type="train" route="routeCA" depart="10"/>
-    <!-- <vehicle id="train2" type="train" route="routeBA" depart="10"/> -->
-    <!-- <vehicle id="train4" type="train" route="routeAC" depart="40"/> -->
+    <vehicle id="train3" type="train" route="routeCA" depart="20"/>
+    <vehicle id="train2" type="train" route="routeBA" depart="40"/>
+    <vehicle id="train4" type="train" route="routeAC" depart="60"/>
 
 </routes>
