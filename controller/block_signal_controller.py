@@ -63,20 +63,23 @@ class BlockSignalController:
             self.block_controller.is_block_free(block)
             for block in ROUTE_REQUIREMENTS[route_name]
         )
+    
+    def _edge_free(self, edge_id):
+        return traci.edge.getLastStepVehicleNumber(edge_id) == 0
 
     def _j1_reserved_for_other(self, train_id):
         active = self._active_train()
         return active not in (None, train_id)
     
-    def _slow_edges(self, edges, target_speed=APPROACH_SPEED, duration=APPROACH_DURATION):
-        for edge in edges:
-            for train_id in traci.edge.getLastStepVehicleIDs(edge):
-                traci.vehicle.slowDown(train_id, target_speed, duration)
+    # def _slow_edges(self, edges, target_speed=APPROACH_SPEED, duration=APPROACH_DURATION):
+    #     for edge in edges:
+    #         for train_id in traci.edge.getLastStepVehicleIDs(edge):
+    #             traci.vehicle.slowDown(train_id, target_speed, duration)
 
-    def _release_edges(self, edges):
-        for edge in edges:
-            for train_id in traci.edge.getLastStepVehicleIDs(edge):
-                traci.vehicle.setSpeed(train_id, -1)
+    # def _release_edges(self, edges):
+    #     for edge in edges:
+    #         for train_id in traci.edge.getLastStepVehicleIDs(edge):
+    #             traci.vehicle.setSpeed(train_id, -1)
 
     # --------------------------------------------------
     # aspect decisions for signals close to J1

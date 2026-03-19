@@ -52,9 +52,9 @@ class JunctionController:
         print(f"{train_id}: granted {route_name}")
 
     def _hold(self, train_id, reason):
-        traci.vehicle.setSpeed(train_id, 0)
         if self.active_train is None:
             self._set_j1("ALL_RED")
+        traci.vehicle.setSpeed(train_id, -1)
         print(f"{train_id}: waiting ({reason})")
 
     def _remove_from_queue(self, train_id):
