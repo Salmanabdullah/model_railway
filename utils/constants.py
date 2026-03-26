@@ -110,3 +110,4 @@ J1_RELEASE_ZONES = {
     "B_to_A": {"B3_down", "B2_down"},
     "C_to_A": {"B5_down", "B2_down"},
 }
+

@@ -22,7 +22,7 @@ class JunctionController:
         # FIFO queue for trains waiting for J1
         self.wait_queue = deque()
 
-        self._set_j1("ALL_GREEN")
+        self._set_j1("ALL_RED")
 
     def _set_j1(self, route_name):
         traci.trafficlight.setRedYellowGreenState(J1_TLS_ID, J1_STATES[route_name])
@@ -52,6 +52,8 @@ class JunctionController:
         print(f"{train_id}: granted {route_name}")
 
     def _hold(self, train_id, reason):
+        # Keep J1 closed, but do not force-stop the train here.
+        # The block-signal controller will handle yellow/red approach behavior.
         if self.active_train is None:
             self._set_j1("ALL_RED")
         traci.vehicle.setSpeed(train_id, -1)
@@ -130,6 +132,25 @@ class JunctionController:
             self.active_route = None
             self._set_j1("ALL_RED")
 
+    def _has_left_j1(self, current_block):
+        """
+        True once the train has passed J1 and entered the first block beyond it.
+        Do not release the route here — only use this for making J1 red again.
+        """
+        if self.active_route == "A_to_B":
+            return current_block == "B3_up"
+
+        elif self.active_route == "A_to_C":
+            return current_block == "B5_up"
+
+        elif self.active_route == "B_to_A":
+            return current_block == "B2_down"
+
+        elif self.active_route == "C_to_A":
+            return current_block == "B2_down"
+
+        return False
+
     def control_train(self, train_id):
         current_block = self.block_controller.get_train_block(train_id)
         if current_block is None:
@@ -140,7 +161,13 @@ class JunctionController:
 
         # keep active train moving
         if self.active_train == train_id and self.active_route is not None:
-            self._set_j1(self.active_route)
+            # After the train leaves J1, put J1 back to red behind the train,
+            # but keep the route reserved until normal release logic clears it.
+            if self._has_left_j1(current_block):
+                self._set_j1("ALL_RED")
+            else:
+                self._set_j1(self.active_route)
+
             traci.vehicle.setSpeed(train_id, -1)
             return
 
@@ -173,3 +200,22 @@ class JunctionController:
             self._grant(train_id, route_name)
         else:
             self._hold(train_id, f"{route_name} blocks occupied")
+
+   
+        """
+        True once the train has passed J1 and entered the first block beyond it.
+        Do not release the route here — only use this for making J1 red again.
+        """
+        if self.active_route == "A_to_B":
+            return current_block == "B3_up"
+
+        elif self.active_route == "A_to_C":
+            return current_block == "B5_up"
+
+        elif self.active_route == "B_to_A":
+            return current_block == "B2_down"
+
+        elif self.active_route == "C_to_A":
+            return current_block == "B2_down"
+
+        return False

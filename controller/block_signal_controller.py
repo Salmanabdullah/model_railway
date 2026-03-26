@@ -2,7 +2,8 @@ import traci
 from utils.constants import ROUTE_REQUIREMENTS
 
 APPROACH_SPEED = 0.6
-APPROACH_DURATION = 2.0
+APPROACH_DURATION = 3.0
+RED_APPROACH_SPEED = 0.2
 
 class BlockSignalController:
     """
@@ -71,15 +72,65 @@ class BlockSignalController:
         active = self._active_train()
         return active not in (None, train_id)
     
-    # def _slow_edges(self, edges, target_speed=APPROACH_SPEED, duration=APPROACH_DURATION):
-    #     for edge in edges:
-    #         for train_id in traci.edge.getLastStepVehicleIDs(edge):
-    #             traci.vehicle.slowDown(train_id, target_speed, duration)
+    def _slow_edges(self, edges, target_speed=APPROACH_SPEED, duration=APPROACH_DURATION):
+        for edge in edges:
+            for train_id in traci.edge.getLastStepVehicleIDs(edge):
+                traci.vehicle.slowDown(train_id, target_speed, duration)
 
-    # def _release_edges(self, edges):
-    #     for edge in edges:
-    #         for train_id in traci.edge.getLastStepVehicleIDs(edge):
-    #             traci.vehicle.setSpeed(train_id, -1)
+    def _release_edges(self, edges):
+        for edge in edges:
+            for train_id in traci.edge.getLastStepVehicleIDs(edge):
+                traci.vehicle.setSpeed(train_id, -1)
+
+    def _route_granted_to_train(self, train_id, route_name):
+        return (
+            getattr(self.junction_controller, "active_train", None) == train_id
+            and getattr(self.junction_controller, "active_route", None) == route_name
+        )
+
+    def _apply_approach_control(self, train_id, aspect, granted):
+        # Once the route is actually granted to this train, release speed control.
+        if granted:
+            traci.vehicle.setSpeed(train_id, -1)
+            return
+
+        # Green with no restriction -> free running
+        if aspect == "G":
+            traci.vehicle.setSpeed(train_id, -1)
+            return
+
+        # Yellow -> slow approach
+        if aspect == "y":
+            traci.vehicle.slowDown(train_id, APPROACH_SPEED, APPROACH_DURATION)
+            return
+
+        # Red -> keep the train under low approach speed until the signal clears
+        traci.vehicle.slowDown(train_id, RED_APPROACH_SPEED, APPROACH_DURATION)
+
+    def _control_a_approach(self, aspect):
+        for edge in ["E2", "E3"]:
+            for train_id in traci.edge.getLastStepVehicleIDs(edge):
+                requested = self._get_requested_route(train_id)
+
+                granted = (
+                    (requested == "routeAB" and self._route_granted_to_train(train_id, "A_to_B"))
+                    or
+                    (requested == "routeAC" and self._route_granted_to_train(train_id, "A_to_C"))
+                )
+
+                self._apply_approach_control(train_id, aspect, granted)
+
+    def _control_b_approach(self, aspect):
+        for edge in ["-E5", "-E4"]:
+            for train_id in traci.edge.getLastStepVehicleIDs(edge):
+                granted = self._route_granted_to_train(train_id, "B_to_A")
+                self._apply_approach_control(train_id, aspect, granted)
+
+    def _control_c_approach(self, aspect):
+        for edge in ["-E8", "-E7"]:
+            for train_id in traci.edge.getLastStepVehicleIDs(edge):
+                granted = self._route_granted_to_train(train_id, "C_to_A")
+                self._apply_approach_control(train_id, aspect, granted)
 
     # --------------------------------------------------
     # aspect decisions for signals close to J1
@@ -180,7 +231,7 @@ class BlockSignalController:
         # Up direction enters B1_up (E2)
         # Down direction goes into terminal A
         # --------------------------------------------------
-        b1_down = "G"
+        b1_down = "G" if self._edge_free("-E1") else "r"
         b1_up = "G" if self.block_controller.is_block_free("B1_up") else "r"
         self._set(self.TLS["B1"], b1_down, b1_up)
 
@@ -217,7 +268,7 @@ class BlockSignalController:
         # Up direction goes into terminal B
         # --------------------------------------------------
         b4_down = "G" if self.block_controller.is_block_free("B4_down") else "r"
-        b4_up = "G"
+        b4_up = "G" if self._edge_free("E6") else "r"
         self._set(self.TLS["B4"], b4_down, b4_up)
 
         # --------------------------------------------------
@@ -241,5 +292,32 @@ class BlockSignalController:
         # Up direction goes into terminal C
         # --------------------------------------------------
         b6_down = "G" if self.block_controller.is_block_free("B6_down") else "r"
-        b6_up = "G"
+        b6_up = "G" if self._edge_free("E9") else "r"
         self._set(self.TLS["B6"], b6_down, b6_up)
+
+        # ----------------------------------------------
+        # yellow = slow approach only, not stop here
+        # ----------------------------------------------
+        # if b2_up == "y":
+        #     self._slow_edges(["E2", "E3"])
+        # else:
+        #     self._release_edges(["E2", "E3"])
+
+        # if b3_down == "y":
+        #     self._slow_edges(["-E5", "-E4"])
+        # else:
+        #     self._release_edges(["-E5", "-E4"])
+
+        # if b5_down == "y":
+        #     self._slow_edges(["-E8", "-E7"])
+        # else:
+        #     self._release_edges(["-E8", "-E7"])
+
+        # ----------------------------------------------
+        # Approach control toward J1
+        # Keep trains slowed while yellow/red is active.
+        # Only release them when their own J1 route is granted.
+        # ----------------------------------------------
+        self._control_a_approach(b2_up)
+        self._control_b_approach(b3_down)
+        self._control_c_approach(b5_down)

@@ -15,7 +15,7 @@ def run():
     train_controller = TrainController(block_controller, junction_controller)
 
     step = 0
-    while step < 350:
+    while step < 300:
         simulation_step()
 
         block_controller.update_occupancy()
