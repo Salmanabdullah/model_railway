@@ -1,6 +1,17 @@
 import traci
 from collections import deque
 
+from controller.sci_tds_protocol import (
+    BLOCK_TO_TVPS_ID,
+    TVPSOccupancyState,
+    MsgTVPSOccupancyStatus,
+    MsgTDPStatus,
+    MsgAdditionalInformation,
+    MsgCommandRejected,
+    MsgTVPSFCPFailed,
+    MsgTVPSFCPAFailed,
+)
+
 from utils.constants import (
     J1_TLS_ID,
     J1_STATES,
@@ -11,18 +22,71 @@ from utils.constants import (
 
 
 class JunctionController:
-    def __init__(self, block_controller):
+    def __init__(self, block_controller, tds_object_controller, message_logger=None):
         self.block_controller = block_controller
+        self.tds_object_controller = tds_object_controller
+        self.message_logger = message_logger
         self.requested_route = {}
 
-        # one active owner of J1 at a time
+        self.section_state = {
+            tvps_id: None
+            for tvps_id in BLOCK_TO_TVPS_ID.values()
+        }
+
+        self.debug_tds = True
+
         self.active_train = None
         self.active_route = None
-
-        # FIFO queue for trains waiting for J1
         self.wait_queue = deque()
 
         self._set_j1("ALL_RED")
+
+    def _log_tds(self, text):
+        if self.debug_tds:
+            print(f"[EI ] {text}")
+
+    def process_tds_messages(self):
+        for msg in self.tds_object_controller.get_messages():
+            if self.message_logger:
+                self.message_logger.log_receive(msg)
+                
+            if isinstance(msg, MsgTVPSOccupancyStatus):
+                self.section_state[msg.sender_id] = msg.occupancy_status
+                self._log_tds(
+                    f"TVPS {msg.sender_id} -> {msg.occupancy_status.name}, "
+                    f"forceClear={msg.ability_to_be_forced_clear.name}, "
+                    f"trigger={msg.change_trigger.name}"
+                )
+
+            elif isinstance(msg, MsgAdditionalInformation):
+                self._log_tds(
+                    f"ADD-INFO {msg.sender_id} speed={msg.speed_kmh} km/h "
+                    f"wheel={msg.wheel_diameter_mm} mm"
+                )
+
+            elif isinstance(msg, MsgTDPStatus):
+                self._log_tds(
+                    f"TDP {msg.sender_id} state={msg.state_of_passing.name} "
+                    f"direction={msg.direction_of_passing.name}"
+                )
+
+            elif isinstance(msg, MsgCommandRejected):
+                self._log_tds(
+                    f"COMMAND REJECTED by {msg.sender_id} reason={msg.reason.name}"
+                )
+
+            elif isinstance(msg, MsgTVPSFCPFailed):
+                self._log_tds(
+                    f"FC-P FAILED by {msg.sender_id} reason={msg.reason.name}"
+                )
+
+            elif isinstance(msg, MsgTVPSFCPAFailed):
+                self._log_tds(
+                    f"FC-P-A FAILED by {msg.sender_id} reason={msg.reason.name}"
+                )
+
+            else:
+                self._log_tds(msg.summary())
 
     def _set_j1(self, route_name):
         traci.trafficlight.setRedYellowGreenState(J1_TLS_ID, J1_STATES[route_name])
@@ -32,9 +96,26 @@ class JunctionController:
             self.requested_route[train_id] = traci.vehicle.getRouteID(train_id)
         return self.requested_route[train_id]
 
+    def _is_block_clear_via_tds(self, block_id):
+        tvps_id = BLOCK_TO_TVPS_ID[block_id]
+        state = self.section_state.get(tvps_id)
+
+        if state == TVPSOccupancyState.VACANT:
+            return True
+        if state in (
+            TVPSOccupancyState.OCCUPIED,
+            TVPSOccupancyState.DISTURBED,
+            TVPSOccupancyState.WAITING_SWEEPING_TRAIN,
+            TVPSOccupancyState.WAITING_ACK_AFTER_FC_P_A,
+            TVPSOccupancyState.SWEEPING_TRAIN_DETECTED,
+        ):
+            return False
+
+        return self.block_controller.is_block_free(block_id)
+
     def _route_free(self, route_name):
         return all(
-            self.block_controller.is_block_free(block)
+            self._is_block_clear_via_tds(block)
             for block in ROUTE_REQUIREMENTS[route_name]
         )
 
@@ -42,7 +123,6 @@ class JunctionController:
         self.active_train = train_id
         self.active_route = route_name
 
-        # remove from queue if it is there
         self._remove_from_queue(train_id)
 
         self._set_j1(route_name)
@@ -52,10 +132,9 @@ class JunctionController:
         print(f"{train_id}: granted {route_name}")
 
     def _hold(self, train_id, reason):
-        # Keep J1 closed, but do not force-stop the train here.
-        # The block-signal controller will handle yellow/red approach behavior.
         if self.active_train is None:
             self._set_j1("ALL_RED")
+
         traci.vehicle.setSpeed(train_id, -1)
         print(f"{train_id}: waiting ({reason})")
 
@@ -77,12 +156,6 @@ class JunctionController:
             print(f"{train_id}: added to J1 FIFO queue -> {list(self.wait_queue)}")
 
     def _cleanup_queue(self):
-        """
-        Remove trains that:
-        - no longer exist in the simulation
-        - are no longer waiting on a J1 approach block
-        - are already the active train
-        """
         existing = set(traci.vehicle.getIDList())
         cleaned = deque()
 
@@ -133,19 +206,12 @@ class JunctionController:
             self._set_j1("ALL_RED")
 
     def _has_left_j1(self, current_block):
-        """
-        True once the train has passed J1 and entered the first block beyond it.
-        Do not release the route here — only use this for making J1 red again.
-        """
         if self.active_route == "A_to_B":
             return current_block == "B3_up"
-
         elif self.active_route == "A_to_C":
             return current_block == "B5_up"
-
         elif self.active_route == "B_to_A":
             return current_block == "B2_down"
-
         elif self.active_route == "C_to_A":
             return current_block == "B2_down"
 
@@ -156,13 +222,9 @@ class JunctionController:
         if current_block is None:
             return
 
-        # first, release J1 if the owning train has cleared it
         self._release_if_cleared(train_id, current_block)
 
-        # keep active train moving
         if self.active_train == train_id and self.active_route is not None:
-            # After the train leaves J1, put J1 back to red behind the train,
-            # but keep the route reserved until normal release logic clears it.
             if self._has_left_j1(current_block):
                 self._set_j1("ALL_RED")
             else:
@@ -171,24 +233,21 @@ class JunctionController:
             traci.vehicle.setSpeed(train_id, -1)
             return
 
-        # add approaching trains to FIFO queue
         self._enqueue_if_needed(train_id, current_block)
-
-        # clean stale entries
         self._cleanup_queue()
 
-        # if this train is not actually waiting for J1, nothing to do
         if not self._is_j1_approach_block(current_block):
             return
 
-        # if another train owns J1, everybody else waits
         if self.active_train not in (None, train_id):
             self._hold(train_id, "J1 reserved")
             return
 
-        # J1 is free now, but only the FIFO head may be granted
         if not self._is_queue_head(train_id):
-            self._hold(train_id, f"FIFO waiting, head={self.wait_queue[0] if self.wait_queue else None}")
+            self._hold(
+                train_id,
+                f"FIFO waiting, head={self.wait_queue[0] if self.wait_queue else None}"
+            )
             return
 
         route_name = self._route_for_train(train_id, current_block)
@@ -199,23 +258,4 @@ class JunctionController:
         if self._route_free(route_name):
             self._grant(train_id, route_name)
         else:
-            self._hold(train_id, f"{route_name} blocks occupied")
-
-   
-        """
-        True once the train has passed J1 and entered the first block beyond it.
-        Do not release the route here — only use this for making J1 red again.
-        """
-        if self.active_route == "A_to_B":
-            return current_block == "B3_up"
-
-        elif self.active_route == "A_to_C":
-            return current_block == "B5_up"
-
-        elif self.active_route == "B_to_A":
-            return current_block == "B2_down"
-
-        elif self.active_route == "C_to_A":
-            return current_block == "B2_down"
-
-        return False
+            self._hold(train_id, f"{route_name} blocked by TVPS")
